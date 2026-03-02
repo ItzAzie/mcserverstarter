@@ -48,47 +48,60 @@ wait.until(lambda d: d.execute_script("return document.readyState") == "complete
 # LOGIN FUNCTION
 # ----------------------------
 
+
 def run_loginflow(username_value, password_value):
     try:
-        username = wait.until(
-            EC.presence_of_element_located((By.ID, "identifier-field"))
+        # --- STEP 1: Wait for email field ---
+        email_input = wait.until(
+            EC.element_to_be_clickable((By.ID, "identifier-field"))
         )
-        print("Username page:", driver.current_url)
 
-        username.send_keys(username_value)
-        username.send_keys(Keys.RETURN)
-        time.sleep(3)
+        print("Email page:", driver.current_url)
+
+        email_input.clear()
+        email_input.send_keys(username_value)
+
+        # Click submit button instead of RETURN (more reliable in CI)
+        submit_btn = wait.until(
+            EC.element_to_be_clickable((By.XPATH, "//button[@type='submit']"))
+        )
+        submit_btn.click()
 
     except Exception as e:
-        print("Username error:", e)
+        print("Username step error:", e)
+        driver.save_screenshot("username_error.png")
         return False
 
     try:
-        # Check invalid username
-        try:
-            error_elem = WebDriverWait(driver, 5).until(
-                EC.visibility_of_element_located((By.ID, "error-identifier"))
-            )
-            if error_elem:
-                print("❌ Invalid username")
-                return False
-        except:
-            pass
-
-        password = wait.until(
-            EC.presence_of_element_located((By.ID, "password-field"))
+        # --- STEP 2: Wait for password field to appear ---
+        password_input = wait.until(
+            EC.element_to_be_clickable((By.XPATH, "//input[@type='password']"))
         )
 
         print("Password page:", driver.current_url)
 
-        password.send_keys(password_value)
-        password.send_keys(Keys.RETURN)
-        time.sleep(5)
+        password_input.clear()
+        password_input.send_keys(password_value)
 
+        submit_btn = wait.until(
+            EC.element_to_be_clickable((By.XPATH, "//button[@type='submit']"))
+        )
+        submit_btn.click()
+
+    except Exception as e:
+        print("Password step error:", e)
+        driver.save_screenshot("password_error.png")
+        return False
+
+    try:
+        # --- STEP 3: Confirm redirect away from sign-in ---
+        wait.until(lambda d: "sign-in" not in d.current_url)
+        print("Login redirect success:", driver.current_url)
         return True
 
     except Exception as e:
-        print("Password error:", e)
+        print("Login redirect failed:", e)
+        driver.save_screenshot("redirect_error.png")
         return False
 
 
@@ -97,9 +110,7 @@ def run_loginflow(username_value, password_value):
 # ----------------------------
 
 try:
-    WebDriverWait(driver, 10).until(
-        lambda d: "dashboard" in d.current_url
-    )
+    WebDriverWait(driver, 10).until(lambda d: "dashboard" in d.current_url)
     print("✅ Already logged in")
 
 except:
@@ -130,7 +141,9 @@ try:
     # Try Stop button
     try:
         stop_button = wait.until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'btn-error')]"))
+            EC.element_to_be_clickable(
+                (By.XPATH, "//button[contains(@class, 'btn-error')]")
+            )
         )
         stop_button.click()
         print("🛑 Clicked Stop button")
